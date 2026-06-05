@@ -1,0 +1,30 @@
+<!--
+Source - https://stackoverflow.com/a/349129
+Posted by Abizern, modified by community. See post 'Timeline' for change history
+Retrieved 2026-06-05, License - CC BY-SA 3.0
+-->
+
+# Mac OS X
+*.DS_Store
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
+
+# Generated files
+*.o
+*.pyc
+
+
+#Python modules
+MANIFEST
+dist/
+build/
+
+# Backup files
+*~.nib
