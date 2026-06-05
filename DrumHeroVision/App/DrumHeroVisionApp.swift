@@ -6,28 +6,43 @@
 //
 
 import SwiftUI
+import RealityKit
 
 @main
 struct DrumHeroVisionApp: App {
 
     @State private var appModel = AppModel()
+    @State private var viewModel = DrumWorkspaceViewModel()
+    
+    init() {
+            DrumComponent.registerComponent()
+        }
 
-    var body: some Scene {
+    var body: some SwiftUI.Scene {
         WindowGroup {
-            ContentView()
-                .environment(appModel)
-        }
-
-        ImmersiveSpace(id: appModel.immersiveSpaceID) {
-            ImmersiveView()
-                .environment(appModel)
-                .onAppear {
-                    appModel.immersiveSpaceState = .open
+                    DrumCatalogView()
+                        .environment(viewModel)
                 }
-                .onDisappear {
-                    appModel.immersiveSpaceState = .closed
+                
+                ImmersiveSpace(id: "DrumImmersiveSpace") {
+                    DrumImmersiveSpace()
+                        .environment(viewModel)
                 }
-        }
-        .immersionStyle(selection: .constant(.mixed), in: .mixed)
+//        WindowGroup {
+//            ContentView()
+//                .environment(appModel)
+//        }
+//
+//        ImmersiveSpace(id: appModel.immersiveSpaceID) {
+//            ImmersiveView()
+//                .environment(appModel)
+//                .onAppear {
+//                    appModel.immersiveSpaceState = .open
+//                }
+//                .onDisappear {
+//                    appModel.immersiveSpaceState = .closed
+//                }
+//        }
+//        .immersionStyle(selection: .constant(.mixed), in: .mixed)
      }
 }
