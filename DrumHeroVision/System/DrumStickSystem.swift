@@ -80,7 +80,7 @@ class DrumStickSystem: System {
         let now = Date().timeIntervalSinceReferenceDate
 
         for drum in drumEntities {
-            guard let drumComp = drum.components[DrumComponent.self] else { continue }
+            guard var drumComp = drum.components[DrumComponent.self] else { continue }
 
             let distance = simd_distance(stickTipPos, drum.position(relativeTo: nil))
 
@@ -96,6 +96,8 @@ class DrumStickSystem: System {
                 drumSurface: drumComp.type,
                 worldPosition: stickTipPos
             ))
+            
+            drumComp.isHit = true
 
             print("🥁 Hit: \(drumComp.type.rawValue)")
         }

@@ -15,9 +15,10 @@ struct DrumHeroVisionApp: App {
     @State private var viewModel = DrumWorkspaceViewModel()
     
     init() {
-            DrumComponent.registerComponent()
+        DrumComponent.registerComponent()
         StickTipComponent.registerComponent()
         DrumStickSystem.registerSystem()
+        DrumSystem.registerSystem()
         }
 
     var body: some SwiftUI.Scene {

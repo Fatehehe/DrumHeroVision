@@ -12,7 +12,7 @@ import RealityKit
 class DrumWorkspaceViewModel {
     let availableDrums: [DrumModel] = [
         DrumModel(type: .snare, iconName: "circle.circle"),
-        DrumModel(type: .bass, iconName: "circle.circle.fill"),
+        DrumModel(type: .ride, iconName: "circle.circle.fill"),
         DrumModel(type: .hihat, iconName: "record.circle")
     ]
     

@@ -13,30 +13,46 @@ import Combine
 struct DrumImmersiveSpace: View {
     @Environment(DrumWorkspaceViewModel.self) private var viewModel
     
-    // State untuk menyimpan skala sementara saat pinch gesture
     @State private var initialScale: SIMD3<Float> = .one
-    
     @State private var cancellables = Set<AnyCancellable>()
     @State var stickLength: Float = 0.2
     
+    // MARK: - ECS Bridge
+    // Dictionary untuk menyimpan referensi entitas drum yang ada di scene
+    @State private var drumEntities: [DrumType: Entity] = [:]
     
     var body: some View {
         RealityView { content in
-            // Setup scene awal jika diperlukan
             spawnStickEntity(chirality: .right, in: content)
             spawnStickEntity(chirality: .left, in: content)
             
         } update: { content in
-            // Mengecek apakah ada request spawn dari ViewModel
             if let type = viewModel.pendingSpawnType {
                 spawnDrum(type: type, in: content)
-                viewModel.pendingSpawnType = nil // Reset state
+                viewModel.pendingSpawnType = nil
             }
         }
         .onAppear {
             DrumStickSystem.hitEventPublisher
+                // Memastikan UI/State update berjalan di Main Thread
+                .receive(on: RunLoop.main)
                 .sink { event in
                     print("🥁 Hit → \(event.drumSurface.rawValue)")
+                    
+                    // 1. Cari entitas drum yang bersangkutan dari dictionary
+                    if let entity = drumEntities[event.drumSurface] {
+                        
+                        // 2. Ambil komponen ECS-nya
+                        if var drumComp = entity.components[DrumComponent.self] {
+                            
+                            // 3. Ubah state menjadi true
+                            drumComp.isHit = true
+                            
+                            // 4. Pasang kembali ke entitas.
+                            // (DrumSystem otomatis akan menangkap perubahan ini di frame berikutnya!)
+                            entity.components.set(drumComp)
+                        }
+                    }
                 }
                 .store(in: &cancellables)
         }
@@ -46,7 +62,6 @@ struct DrumImmersiveSpace: View {
             DragGesture()
                 .targetedToAnyEntity()
                 .onChanged { value in
-                    // Memindahkan posisi entitas sesuai drag di ruang 3D
                     let entity = value.entity
                     entity.position = value.convert(value.location3D, from: .local, to: entity.parent!)
                 }
@@ -60,58 +75,53 @@ struct DrumImmersiveSpace: View {
                     if initialScale == .one {
                         initialScale = entity.scale
                     }
-                    // Mengkalikan skala awal dengan nilai pembesaran
                     let newScale = Float(value.magnification)
                     entity.scale = initialScale * newScale
                 }
                 .onEnded { _ in
-                    initialScale = .one // Reset saat pinch selesai
+                    initialScale = .one
                 }
         )
         // MARK: - Rotate Gesture (Twist)
-        // MARK: - Rotate Gesture (Twist)
-                .gesture(
-                    RotateGesture3D()
-                        .targetedToAnyEntity()
-                        .onChanged { value in
-                            let entity = value.entity
-                            // Menerapkan rotasi 3D dengan mengonversi ke simd_quatf
-                            entity.transform.rotation = simd_quatf(value.rotation)
-                        }
-                )
+        .gesture(
+            RotateGesture3D()
+                .targetedToAnyEntity()
+                .onChanged { value in
+                    let entity = value.entity
+                    entity.transform.rotation = simd_quatf(value.rotation)
+                }
+        )
     }
     
     // MARK: - Spawn System
-    // MARK: - Spawn System
-        private func spawnDrum(type: DrumType, in content: RealityViewContent) {
-            let mesh = MeshResource.generateCylinder(height: 0.2, radius: 0.3)
-            let material = SimpleMaterial(color: type == .snare ? .red : .blue, isMetallic: true)
-            
-            let drumEntity = ModelEntity(mesh: mesh, materials: [material])
-            
-            // 1. Tambahkan ECS Component kita
-            drumEntity.components.set(DrumComponent(type: type))
-            
-            // 2. Tambahkan Collision & Input Target (Wajib untuk Gesture!)
-            // PERBAIKAN: Gunakan Box sebagai proksi collision untuk silinder
-            let shape = ShapeResource.generateBox(width: 0.6, height: 0.2, depth: 0.6)
-            
-            /* Alternatif jika ingin collision yang benar-benar mengikuti bentuk mesh silinder 100%:
-             if let convexShape = try? ShapeResource.generateConvex(from: mesh) {
-                 drumEntity.components.set(CollisionComponent(shapes: [convexShape]))
-             }
-            */
-            
-            drumEntity.components.set(CollisionComponent(shapes: [shape]))
-            drumEntity.components.set(InputTargetComponent(allowedInputTypes: .indirect)) // Mengizinkan tap/pinch jari
-            
-            // 3. Set posisi awal
-            drumEntity.position = SIMD3<Float>(0, 1.2, -1.0)
-            
-            content.add(drumEntity)
+    private func spawnDrum(type: DrumType, in content: RealityViewContent) {
+        let mesh = MeshResource.generateCylinder(height: 0.2, radius: 0.3)
+        
+        let material = SimpleMaterial(color: type.color, isMetallic: true)
+        
+        let drumEntity = ModelEntity(mesh: mesh, materials: [material])
+        
+        // 1. Tambahkan ECS Component
+        drumEntity.components.set(DrumComponent(type: type, isHit: false))
+        
+        // 2. Tambahkan Collision & Input Target
+        let shape = ShapeResource.generateBox(width: 0.6, height: 0.2, depth: 0.6)
+        drumEntity.components.set(CollisionComponent(shapes: [shape]))
+        drumEntity.components.set(InputTargetComponent(allowedInputTypes: .indirect))
+        
+        // 3. Set posisi awal
+        drumEntity.position = SIMD3<Float>(0, 1.2, -1.0)
+        
+        content.add(drumEntity)
+        
+        // 4. Simpan entitas ke Dictionary secara asinkron
+        // (Menggunakan DispatchQueue untuk menghindari warning SwiftUI "Modifying state during view update")
+        DispatchQueue.main.async {
+            drumEntities[type] = drumEntity
         }
+    }
     
-    //Spawn Stick
+    // MARK: - Spawn Stick
     private func spawnStickEntity(chirality: HandAnchor.Chirality, in content: RealityViewContent) {
         let mesh = MeshResource.generateCylinder(height: stickLength, radius: 0.008)
         
@@ -122,9 +132,8 @@ struct DrumImmersiveSpace: View {
         
         let stickEntity = ModelEntity(mesh: mesh, materials: [material])
         stickEntity.components.set(StickTipComponent(chirality: chirality, stickLength: stickLength))
-        stickEntity.position = SIMD3<Float>(0, -10, 0) // offscreen until system positions it
+        stickEntity.position = SIMD3<Float>(0, -10, 0)
         
         content.add(stickEntity)
     }
-
-}
+} 

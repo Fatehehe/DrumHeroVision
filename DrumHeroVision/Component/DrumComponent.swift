@@ -8,6 +8,12 @@
 import Foundation
 import RealityKit
 
-public struct DrumComponent: Component, Codable {
+struct DrumComponent: Component, Codable {
+    var isHit: Bool = false
     var type: DrumType
+    
+    init(type: DrumType, isHit: Bool = false) {
+        self.type = type
+        self.isHit = isHit
+    }
 }
