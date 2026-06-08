@@ -21,8 +21,9 @@ class DrumStickSystem: System {
     private let handTracking = HandTrackingProvider()
     
     static let hitEventPublisher = PassthroughSubject<DrumHitEvent, Never>()
-    private let hitCoolDown: TimeInterval = 0.1
-    private var lastHitTime: [DrumType: TimeInterval] = [:]
+    private var isINsideZone: [HandAnchor.Chirality: Set<DrumType>] = [:]
+//    private let hitCoolDown: TimeInterval = 0.1
+//    private var lastHitTime: [DrumType: TimeInterval] = [:]
     
     required init(scene: RealityKit.Scene) {
         Task { await startARKitSession()}
@@ -71,37 +72,79 @@ class DrumStickSystem: System {
             let direction   = length(rawDir) > 0 ? normalize(rawDir) : SIMD3<Float>(0, -1, 0)
             let stickTipPos = thumbTipWorld + direction * 0.4
             
-            checkHit(stickTipPos: stickTipPos, drumEntities: Array(drumEntities))
+            guard let skel = skeleton, isGrippingStick(skeleton: skel, anchorToWorld: anchorToWorld) else {continue}
+                
+            checkHit(stickTipPos: stickTipPos, chirality: handAnchor.chirality, drumEntities: Array(drumEntities))
+            
+
         }
     }
 
     
-    private func checkHit(stickTipPos: SIMD3<Float>, drumEntities: [Entity]) {
-        let now = Date().timeIntervalSinceReferenceDate
+    private func checkHit(stickTipPos: SIMD3<Float>,chirality: HandAnchor.Chirality, drumEntities: [Entity]) {
+        var currentInZone = isINsideZone[chirality] ?? Set<DrumType>()
 
         for drum in drumEntities {
             guard var drumComp = drum.components[DrumComponent.self] else { continue }
 
             let distance = simd_distance(stickTipPos, drum.position(relativeTo: nil))
-
-            guard distance < 0.15 else { continue }
-
-            let last = lastHitTime[drumComp.type] ?? 0
-            guard (now - last) > hitCoolDown else { continue }
-
-            lastHitTime[drumComp.type] = now
-
-            DrumStickSystem.hitEventPublisher.send(DrumHitEvent(
-                timestamp: now,
-                drumSurface: drumComp.type,
-                worldPosition: stickTipPos
-            ))
+            let isNowInside = distance < 0.15
+            let wasInsideBefore = currentInZone.contains(drumComp.type)
+            
+            if isNowInside {
+                currentInZone.insert(drumComp.type)
+            } else {
+                currentInZone.remove(drumComp.type)
+            }
+            
+            guard isNowInside && !wasInsideBefore else {continue}
             
             drumComp.isHit = true
-
+            drum.components.set(drumComp)
             print("🥁 Hit: \(drumComp.type.rawValue)")
         }
+        
+        isINsideZone[chirality] = currentInZone
     }
+    
+    private func isGrippingStick(skeleton: HandSkeleton, anchorToWorld: simd_float4x4) -> Bool {
+        print("gripping called")
+        let fingers: [(knuckle: HandSkeleton.JointName, tip: HandSkeleton.JointName)] = [
+            (.indexFingerKnuckle,  .indexFingerTip),
+            (.middleFingerKnuckle, .middleFingerTip),
+            (.ringFingerKnuckle,   .ringFingerTip),
+            (.littleFingerKnuckle, .littleFingerTip)
+        ]
+        
+        func worldPos(_ name: HandSkeleton.JointName) -> SIMD3<Float> {
+            let local  = skeleton.joint(name).anchorFromJointTransform.columns.3
+            let world4 = anchorToWorld * local
+            return SIMD3<Float>(world4.x, world4.y, world4.z)
+        }
+        
+        let wristPos = worldPos(.wrist)
+        var curledCount = 0
+        
+        for finger in fingers {
+            let knucklePos = worldPos(finger.knuckle)
+            let tipPos     = worldPos(finger.tip)
+            
+            let palmDir   = normalize(knucklePos - wristPos)
+            let fingerDir = normalize(tipPos - knucklePos)
+            
+            let dotProduct = dot(palmDir, fingerDir)
+            
+            if dotProduct < 0.5 {
+                curledCount += 1
+            }
+            
+            //print("[\(finger.knuckle)] dot: \(dotProduct)")
+        }
+        
+        return curledCount >= 3
+    }
+
+
 
     
 }
