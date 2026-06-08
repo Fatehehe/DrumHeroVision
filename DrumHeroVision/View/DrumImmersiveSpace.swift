@@ -7,6 +7,8 @@
 
 import SwiftUI
 import RealityKit
+import ARKit
+import Combine
 
 struct DrumImmersiveSpace: View {
     @Environment(DrumWorkspaceViewModel.self) private var viewModel
@@ -14,9 +16,16 @@ struct DrumImmersiveSpace: View {
     // State untuk menyimpan skala sementara saat pinch gesture
     @State private var initialScale: SIMD3<Float> = .one
     
+    @State private var cancellables = Set<AnyCancellable>()
+    @State var stickLength: Float = 0.2
+    
+    
     var body: some View {
         RealityView { content in
             // Setup scene awal jika diperlukan
+            spawnStickEntity(chirality: .right, in: content)
+            spawnStickEntity(chirality: .left, in: content)
+            
         } update: { content in
             // Mengecek apakah ada request spawn dari ViewModel
             if let type = viewModel.pendingSpawnType {
@@ -24,6 +33,14 @@ struct DrumImmersiveSpace: View {
                 viewModel.pendingSpawnType = nil // Reset state
             }
         }
+        .onAppear {
+            DrumStickSystem.hitEventPublisher
+                .sink { event in
+                    print("🥁 Hit → \(event.drumSurface.rawValue)")
+                }
+                .store(in: &cancellables)
+        }
+
         // MARK: - Drag Gesture
         .gesture(
             DragGesture()
@@ -93,4 +110,21 @@ struct DrumImmersiveSpace: View {
             
             content.add(drumEntity)
         }
+    
+    //Spawn Stick
+    private func spawnStickEntity(chirality: HandAnchor.Chirality, in content: RealityViewContent) {
+        let mesh = MeshResource.generateCylinder(height: stickLength, radius: 0.008)
+        
+        var material = PhysicallyBasedMaterial()
+        material.baseColor = .init(tint: chirality == .left ? .systemBlue : .systemRed)
+        material.roughness = .init(floatLiteral: 0.3)
+        material.metallic  = .init(floatLiteral: 0.8)
+        
+        let stickEntity = ModelEntity(mesh: mesh, materials: [material])
+        stickEntity.components.set(StickTipComponent(chirality: chirality, stickLength: stickLength))
+        stickEntity.position = SIMD3<Float>(0, -10, 0) // offscreen until system positions it
+        
+        content.add(stickEntity)
+    }
+
 }

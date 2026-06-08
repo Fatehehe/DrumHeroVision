@@ -16,6 +16,8 @@ struct DrumHeroVisionApp: App {
     
     init() {
             DrumComponent.registerComponent()
+        StickTipComponent.registerComponent()
+        DrumStickSystem.registerSystem()
         }
 
     var body: some SwiftUI.Scene {

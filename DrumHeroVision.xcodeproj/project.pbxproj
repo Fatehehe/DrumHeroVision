@@ -161,10 +161,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = L62ZSF9D69;
+				DEVELOPMENT_TEAM = GA9D429QL3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to see your real drum kit through passthrough.";
+				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "Used to detect drum stick movements via hand tracking.";
+				INFOPLIST_KEY_NSWorldSensingUsageDescription = "Used to place drum overlays in your physical space.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -190,10 +193,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = L62ZSF9D69;
+				DEVELOPMENT_TEAM = GA9D429QL3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to see your real drum kit through passthrough.";
+				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "Used to detect drum stick movements via hand tracking.";
+				INFOPLIST_KEY_NSWorldSensingUsageDescription = "Used to place drum overlays in your physical space.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
