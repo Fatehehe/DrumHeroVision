@@ -88,8 +88,19 @@ class DrumStickSystem: System {
             guard var drumComp = drum.components[DrumComponent.self] else { continue }
 
             let distance = simd_distance(stickTipPos, drum.position(relativeTo: nil))
-            let isNowInside = distance < 0.15
+            
             let wasInsideBefore = currentInZone.contains(drumComp.type)
+            
+            let enterThreshold: Float = 0.15
+            let exitThreshold: Float = 0.22
+            
+            let isNowInside: Bool
+            
+            if wasInsideBefore {
+                isNowInside = distance < exitThreshold
+            } else {
+                isNowInside = distance < enterThreshold
+            }
             
             if isNowInside {
                 currentInZone.insert(drumComp.type)
@@ -137,6 +148,7 @@ class DrumStickSystem: System {
             if dotProduct < 0.5 {
                 curledCount += 1
             }
+            
             
             //print("[\(finger.knuckle)] dot: \(dotProduct)")
         }
