@@ -25,8 +25,21 @@ class DrumStickSystem: System {
 //    private let hitCoolDown: TimeInterval = 0.1
 //    private var lastHitTime: [DrumType: TimeInterval] = [:]
     
+    private var collisionSubscription: (any Cancellable)?
+    
     required init(scene: RealityKit.Scene) {
         Task { await startARKitSession()}
+        
+        collisionSubscription = scene.subscribe(to: CollisionEvents.Began.self) { event in
+            let drumEntity = event.entityA.components[DrumComponent.self] != nil
+            ? event.entityA : event.entityB
+            
+            guard var drumComp = drumEntity.components[DrumComponent.self] else { return }
+            
+            drumComp.isHit = true
+            drumEntity.components.set(drumComp)
+            print("Collision hit")
+        }
     }
     
     private func startARKitSession() async {
@@ -72,51 +85,91 @@ class DrumStickSystem: System {
             let direction   = length(rawDir) > 0 ? normalize(rawDir) : SIMD3<Float>(0, -1, 0)
             let stickTipPos = thumbTipWorld + direction * 0.4
             
-            guard let skel = skeleton, isGrippingStick(skeleton: skel, anchorToWorld: anchorToWorld) else {continue}
-                
-            checkHit(stickTipPos: stickTipPos, chirality: handAnchor.chirality, drumEntities: Array(drumEntities))
-            
+            let stickEntities = context.entities(matching: Self.stickQuery, updatingSystemWhen: .rendering)
+            guard let stickEntity = stickEntities.first(where: {
+                $0.components[StickTipComponent.self]?.chirality == handAnchor.chirality
+            }) else { continue }
 
+            guard let skel = skeleton,
+                  isGrippingStick(skeleton: skel, anchorToWorld: anchorToWorld) else {
+                stickEntity.isEnabled = false
+                continue
+            }
+            
+            let length = stickEntity.components[StickTipComponent.self]?.stickLength ?? 0.4
+            let stickCenter = thumbTipWorld + direction * (length / 2)
+            
+            stickEntity.scale       = SIMD3<Float>(1, length, 1)
+            stickEntity.position    = stickCenter
+            stickEntity.orientation = simd_quatf(from: SIMD3<Float>(0, 1, 0), to: direction)
+            stickEntity.isEnabled   = true
+            
+            let otherAnchor = handAnchor.chirality == .left ? anchors.rightHand : anchors.leftHand
+            if let otherAnchor, otherAnchor.isTracked,
+               let otherSkeleton = otherAnchor.handSkeleton {
+                
+                let otherThumbLocal  = otherSkeleton.joint(.thumbTip).anchorFromJointTransform.columns.3
+                let otherThumbWorld4 = otherAnchor.originFromAnchorTransform * otherThumbLocal
+                let otherThumbPos    = SIMD3<Float>(otherThumbWorld4.x, otherThumbWorld4.y, otherThumbWorld4.z)
+                
+                let stickTip  = thumbTipWorld + direction * length
+                let distToTip = simd_distance(otherThumbPos, stickTip)
+                
+                if distToTip < 0.03 {
+                    // Other thumb is near the tip → resize!
+                    let newLength = simd_distance(thumbTipWorld, otherThumbPos)
+                    let clamped   = newLength
+                    
+                    if var comp = stickEntity.components[StickTipComponent.self] {
+                        comp.stickLength = clamped
+                        stickEntity.components.set(comp)
+                    }
+                    
+                    UserDefaults.standard.set(Double(clamped), forKey: "stickLength")
+                    print("📏 \(String(format: "%.0f", clamped * 100))cm")
+                }
+            }
         }
+        
     }
 
     
-    private func checkHit(stickTipPos: SIMD3<Float>,chirality: HandAnchor.Chirality, drumEntities: [Entity]) {
-        var currentInZone = isINsideZone[chirality] ?? Set<DrumType>()
-
-        for drum in drumEntities {
-            guard var drumComp = drum.components[DrumComponent.self] else { continue }
-
-            let distance = simd_distance(stickTipPos, drum.position(relativeTo: nil))
-            
-            let wasInsideBefore = currentInZone.contains(drumComp.type)
-            
-            let enterThreshold: Float = 0.15
-            let exitThreshold: Float = 0.22
-            
-            let isNowInside: Bool
-            
-            if wasInsideBefore {
-                isNowInside = distance < exitThreshold
-            } else {
-                isNowInside = distance < enterThreshold
-            }
-            
-            if isNowInside {
-                currentInZone.insert(drumComp.type)
-            } else {
-                currentInZone.remove(drumComp.type)
-            }
-            
-            guard isNowInside && !wasInsideBefore else {continue}
-            
-            drumComp.isHit = true
-            drum.components.set(drumComp)
-            print("🥁 Hit: \(drumComp.type.rawValue)")
-        }
-        
-        isINsideZone[chirality] = currentInZone
-    }
+//    private func checkHit(stickTipPos: SIMD3<Float>,chirality: HandAnchor.Chirality, drumEntities: [Entity]) {
+//        var currentInZone = isINsideZone[chirality] ?? Set<DrumType>()
+//
+//        for drum in drumEntities {
+//            guard var drumComp = drum.components[DrumComponent.self] else { continue }
+//
+//            let distance = simd_distance(stickTipPos, drum.position(relativeTo: nil))
+//            
+//            let wasInsideBefore = currentInZone.contains(drumComp.type)
+//            
+//            let enterThreshold: Float = 0.15
+//            let exitThreshold: Float = 0.22
+//            
+//            let isNowInside: Bool
+//            
+//            if wasInsideBefore {
+//                isNowInside = distance < exitThreshold
+//            } else {
+//                isNowInside = distance < enterThreshold
+//            }
+//            
+//            if isNowInside {
+//                currentInZone.insert(drumComp.type)
+//            } else {
+//                currentInZone.remove(drumComp.type)
+//            }
+//            
+//            guard isNowInside && !wasInsideBefore else {continue}
+//            
+//            drumComp.isHit = true
+//            drum.components.set(drumComp)
+//            print("🥁 Hit: \(drumComp.type.rawValue)")
+//        }
+//        
+//        isINsideZone[chirality] = currentInZone
+//    }
     
     private func isGrippingStick(skeleton: HandSkeleton, anchorToWorld: simd_float4x4) -> Bool {
         print("gripping called")

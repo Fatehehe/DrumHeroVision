@@ -15,7 +15,8 @@ struct DrumImmersiveSpace: View {
     
     @State private var initialScale: SIMD3<Float> = .one
     @State private var cancellables = Set<AnyCancellable>()
-    @State var stickLength: Float = 0.2
+    @AppStorage("stickLength") private var stickLength: Double = 0.4
+    @State private var gestureStartLength: Double = 0.4
     
     // MARK: - ECS Bridge
     // Dictionary untuk menyimpan referensi entitas drum yang ada di scene
@@ -30,6 +31,13 @@ struct DrumImmersiveSpace: View {
             if let type = viewModel.pendingSpawnType {
                 spawnDrum(type: type, in: content)
                 viewModel.pendingSpawnType = nil
+            }
+            
+            for entity in content.entities {
+                if var comp = entity.components[StickTipComponent.self] {
+                    comp.stickLength = Float(stickLength)
+                    entity.components.set(comp)
+                }
             }
         }
         .onAppear {
@@ -91,6 +99,17 @@ struct DrumImmersiveSpace: View {
                     entity.transform.rotation = simd_quatf(value.rotation)
                 }
         )
+        .overlay(alignment: .bottom) {
+            VStack {
+                Text("Stick Length: \(String(format: "%.0f", stickLength * 100))cm")
+                    .foregroundStyle(.white)
+                Slider(value: $stickLength, in: 0.2...0.7, step: 0.05)
+                    .frame(width: 300)
+            }
+            .padding()
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .padding(.bottom, 40)
+        }
     }
     
     // MARK: - Spawn System
@@ -121,17 +140,43 @@ struct DrumImmersiveSpace: View {
         }
     }
     
-    // MARK: - Spawn Stick
+    // MARK: Spawn Stick
     private func spawnStickEntity(chirality: HandAnchor.Chirality, in content: RealityViewContent) {
-        let mesh = MeshResource.generateCylinder(height: stickLength, radius: 0.008)
+        let mesh = MeshResource.generateCylinder(height: 1.0, radius: 0.008)
         
         var material = PhysicallyBasedMaterial()
-        material.baseColor = .init(tint: chirality == .left ? .systemBlue : .systemRed)
-        material.roughness = .init(floatLiteral: 0.3)
-        material.metallic  = .init(floatLiteral: 0.8)
+        //Transparent
+        let color = chirality == .left
+        ? UIColor.systemBlue.withAlphaComponent(0.5) : UIColor.systemRed.withAlphaComponent(0.5)
+        
+        material.baseColor = .init(tint: color)
+        material.blending = .transparent(opacity: .init(floatLiteral: 0.5))
         
         let stickEntity = ModelEntity(mesh: mesh, materials: [material])
-        stickEntity.components.set(StickTipComponent(chirality: chirality, stickLength: stickLength))
+        stickEntity.components.set(StickTipComponent(chirality: chirality, stickLength: Float(stickLength)))
+        stickEntity.components.set(InputTargetComponent(allowedInputTypes: .indirect))
+        
+        let tipMesh     = MeshResource.generateSphere(radius: 0.012)
+        var tipMaterial = UnlitMaterial()
+        tipMaterial.color = .init(tint: .yellow.withAlphaComponent(0.8))
+        
+        //kalau mau pake tip acnhor
+//        let tipAnchor = ModelEntity(mesh: tipMesh, materials: [tipMaterial])
+//        tipAnchor.name = "tipAnchor"
+//        
+//        tipAnchor.position = SIMD3<Float>(0, 0.5, 0)
+//        stickEntity.addChild(tipAnchor)
+        
+        //generate collision
+        let collisionShape = ShapeResource.generateBox(
+            width: 0.016, height: 1.0, depth: 0.016
+        )
+        stickEntity.components.set(CollisionComponent(
+            shapes: [collisionShape],
+            mode: .default
+        )) //no bounce. detectiopn only
+        
+        stickEntity.isEnabled = false
         stickEntity.position = SIMD3<Float>(0, -10, 0)
         
         content.add(stickEntity)
