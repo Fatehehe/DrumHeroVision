@@ -40,31 +40,7 @@ struct DrumImmersiveSpace: View {
                 }
             }
         }
-        .onAppear {
-            DrumStickSystem.hitEventPublisher
-                // Memastikan UI/State update berjalan di Main Thread
-                .receive(on: RunLoop.main)
-                .sink { event in
-                    print("🥁 Hit → \(event.drumSurface.rawValue)")
-                    
-                    // 1. Cari entitas drum yang bersangkutan dari dictionary
-                    if let entity = drumEntities[event.drumSurface] {
-                        
-                        // 2. Ambil komponen ECS-nya
-                        if var drumComp = entity.components[DrumComponent.self] {
-                            
-                            // 3. Ubah state menjadi true
-                            drumComp.isHit = true
-                            
-                            // 4. Pasang kembali ke entitas.
-                            // (DrumSystem otomatis akan menangkap perubahan ini di frame berikutnya!)
-                            entity.components.set(drumComp)
-                        }
-                    }
-                }
-                .store(in: &cancellables)
-        }
-
+        
         // MARK: - Drag Gesture
         .gesture(
             DragGesture()
@@ -90,26 +66,6 @@ struct DrumImmersiveSpace: View {
                     initialScale = .one
                 }
         )
-        // MARK: - Rotate Gesture (Twist)
-        .gesture(
-            RotateGesture3D()
-                .targetedToAnyEntity()
-                .onChanged { value in
-                    let entity = value.entity
-                    entity.transform.rotation = simd_quatf(value.rotation)
-                }
-        )
-        .overlay(alignment: .bottom) {
-            VStack {
-                Text("Stick Length: \(String(format: "%.0f", stickLength * 100))cm")
-                    .foregroundStyle(.white)
-                Slider(value: $stickLength, in: 0.2...0.7, step: 0.05)
-                    .frame(width: 300)
-            }
-            .padding()
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .padding(.bottom, 40)
-        }
     }
     
     // MARK: - Spawn System
@@ -121,7 +77,7 @@ struct DrumImmersiveSpace: View {
         let drumEntity = ModelEntity(mesh: mesh, materials: [material])
         
         // 1. Tambahkan ECS Component
-        drumEntity.components.set(DrumComponent(type: type, isHit: false))
+        drumEntity.components.set(DrumComponent(type: type))
         
         // 2. Tambahkan Collision & Input Target
         let shape = ShapeResource.generateBox(width: 0.6, height: 0.2, depth: 0.6)
@@ -156,7 +112,7 @@ struct DrumImmersiveSpace: View {
         stickEntity.components.set(StickTipComponent(chirality: chirality, stickLength: Float(stickLength)))
         stickEntity.components.set(InputTargetComponent(allowedInputTypes: .indirect))
         
-        let tipMesh     = MeshResource.generateSphere(radius: 0.012)
+//        let tipMesh     = MeshResource.generateSphere(radius: 0.012)
         var tipMaterial = UnlitMaterial()
         tipMaterial.color = .init(tint: .yellow.withAlphaComponent(0.8))
         

@@ -11,7 +11,7 @@ import RealityKit
 import Foundation
 import RealityKit
 import SwiftUI
-import UIKit // Dibutuhkan untuk UIColor
+import UIKit
 
 enum DrumType: String, CaseIterable, Identifiable, Codable {
     case snare, hihat, ride, crash
@@ -55,7 +55,6 @@ enum DrumType: String, CaseIterable, Identifiable, Codable {
         }
     }
     
-    /// Nama model USDZ untuk load aset 3D
     var modelName: String {
         return "\(self.rawValue.lowercased())_model"
     }
@@ -66,4 +65,5 @@ struct DrumModel: Identifiable {
     let id = UUID()
     let type: DrumType
     let iconName: String
+    var isSpawned: Bool = false
 }

@@ -11,30 +11,43 @@ struct DrumCatalogView: View {
     @Environment(DrumWorkspaceViewModel.self) private var viewModel
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     
+    let columns = [
+        GridItem(.adaptive(minimum: 160), spacing: 30)
+    ]
+    
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 30) {
             Text("Pilih Drum")
                 .font(.extraLargeTitle)
             
-            HStack(spacing: 30) {
-                ForEach(viewModel.availableDrums) { drum in
-                    Button(action: {
-                        viewModel.requestSpawn(for: drum.type)
-                    }) {
-                        VStack {
-                            Image(systemName: drum.iconName)
-                                .resizable()
-                                .frame(width: 80, height: 80)
-                            Text(drum.type.rawValue)
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 30) {
+                    ForEach(viewModel.availableDrums) { drum in
+                        Button(action: {
+                            viewModel.requestSpawn(for: drum.type)
+                        }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: drum.iconName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 80, height: 80)
+                                
+                                Text(drum.type.rawValue.capitalized)
+                                    .font(.title2)
+                            }
+                            .padding(20)
+                            .frame(maxWidth: .infinity)
                         }
-                        .padding()
+                        .buttonStyle(.plain)
+                        .glassBackgroundEffect()
+                        .disabled(drum.isSpawned)
+                        .opacity(drum.isSpawned ? 0.4 : 1.0)
                     }
-                    .buttonStyle(.plain)
-                    .glassBackgroundEffect()
                 }
+                .padding(.horizontal, 40)
             }
         }
-        .padding(40)
+        .padding(.vertical, 40)
         .onAppear {
             Task {
                 await openImmersiveSpace(id: "DrumImmersiveSpace")
