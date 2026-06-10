@@ -18,6 +18,7 @@ struct DrumSystem: System {
     
     static func HandleHit(drum: Entity, type: DrumType){
         playAudioFeedback(for: type, on: drum)
+        checkRhythmHit(drum: drum, type: type)
     }
     
     private static func playAudioFeedback(for type: DrumType, on entity: Entity) {
@@ -33,6 +34,37 @@ struct DrumSystem: System {
             } catch {
                 print("Gagal memuat file audio: \(fileName). Pastikan file .wav sudah dimasukkan ke Target project.")
             }
+        }
+    }
+    
+    private static func checkRhythmHit(drum: Entity, type: DrumType) {
+        let hitZoneRange: ClosedRange<Float> = -0.2...0.2 // Toleransi jarak Z
+        var hitSuccessful = false
+        
+        // Cek semua anak (children) dari drum ini
+        for child in drum.children {
+            if let noteComp = child.components[RhythmNoteComponent.self], noteComp.drumType == type {
+                // Cek posisi Z dari not tersebut
+                let noteZPosition = child.position.z
+                
+                if hitZoneRange.contains(noteZPosition) {
+                    // PERFECT HIT!
+                    hitSuccessful = true
+                    
+                    // Tambah skor (update singleton/state manager)
+                    DrumWorkspaceViewModel.sharedScore += 10
+                    print("PERFECT HIT! Skor: \(DrumWorkspaceViewModel.sharedScore)")
+                    
+                    // Beri efek visual hancur (opsional) lalu hapus notnya
+                    child.removeFromParent()
+                    
+                    break // Hanya hancurkan 1 not per pukulan
+                }
+            }
+        }
+        
+        if !hitSuccessful {
+            print("MISS!")
         }
     }
     

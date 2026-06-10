@@ -10,6 +10,9 @@ import RealityKit
 
 @Observable
 class DrumWorkspaceViewModel {
+    var score: Int = 0
+    static var sharedScore: Int = 0
+    
     var availableDrums: [DrumModel] = [
         DrumModel(type: .snare, iconName: "circle.circle"),
         DrumModel(type: .hihat, iconName: "record.circle"),

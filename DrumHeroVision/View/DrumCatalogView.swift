@@ -6,10 +6,15 @@
 //
 
 import SwiftUI
+import Combine
 
 struct DrumCatalogView: View {
     @Environment(DrumWorkspaceViewModel.self) private var viewModel
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    
+    // MARK: - State Skor & Timer
+    @State private var currentScore: Int = 0
+    let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
     let columns = [
         GridItem(.adaptive(minimum: 160), spacing: 30)
@@ -17,6 +22,34 @@ struct DrumCatalogView: View {
     
     var body: some View {
         VStack(spacing: 30) {
+            
+            // MARK: - Tampilan Skor
+            HStack {
+                Spacer()
+                VStack {
+                    Text("SKOR")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text("\(currentScore)")
+                        .font(.system(size: 64, weight: .bold, design: .rounded))
+                        .foregroundStyle(.yellow)
+                        // Memberikan efek animasi membesar sedikit saat skor berubah
+                        .contentTransition(.numericText())
+                }
+                .padding(.horizontal, 40)
+                .padding(.vertical, 20)
+                .glassBackgroundEffect()
+                Spacer()
+            }
+            // Sinkronisasi skor secara berkala
+            .onReceive(timer) { _ in
+                // Pastikan kamu sudah menambahkan `static var sharedScore: Int = 0`
+                // di dalam class DrumWorkspaceViewModel
+                withAnimation {
+                    currentScore = DrumWorkspaceViewModel.sharedScore
+                }
+            }
+            
             Text("Pilih Drum")
                 .font(.extraLargeTitle)
             

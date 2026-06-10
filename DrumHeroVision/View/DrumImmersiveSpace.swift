@@ -19,7 +19,6 @@ struct DrumImmersiveSpace: View {
     @State private var gestureStartLength: Double = 0.4
     
     // MARK: - ECS Bridge
-    // Dictionary untuk menyimpan referensi entitas drum yang ada di scene
     @State private var drumEntities: [DrumType: Entity] = [:]
     
     var body: some View {
@@ -89,8 +88,13 @@ struct DrumImmersiveSpace: View {
         
         content.add(drumEntity)
         
+        // ==========================================
+        // 🌟 PERUBAHAN DI SINI 🌟
+        // Panggil fungsi untuk spawn jalur dan note!
+        // ==========================================
+        spawnTrackAndNotes(for: drumEntity, type: type)
+        
         // 4. Simpan entitas ke Dictionary secara asinkron
-        // (Menggunakan DispatchQueue untuk menghindari warning SwiftUI "Modifying state during view update")
         DispatchQueue.main.async {
             drumEntities[type] = drumEntity
         }
@@ -98,10 +102,10 @@ struct DrumImmersiveSpace: View {
     
     // MARK: Spawn Stick
     private func spawnStickEntity(chirality: HandAnchor.Chirality, in content: RealityViewContent) {
+        // ... (Kode spawn stick tetap sama) ...
         let mesh = MeshResource.generateCylinder(height: 1.0, radius: 0.008)
         
         var material = PhysicallyBasedMaterial()
-        //Transparent
         let color = chirality == .left
         ? UIColor.systemBlue.withAlphaComponent(0.5) : UIColor.systemRed.withAlphaComponent(0.5)
         
@@ -112,29 +116,55 @@ struct DrumImmersiveSpace: View {
         stickEntity.components.set(StickTipComponent(chirality: chirality, stickLength: Float(stickLength)))
         stickEntity.components.set(InputTargetComponent(allowedInputTypes: .indirect))
         
-//        let tipMesh     = MeshResource.generateSphere(radius: 0.012)
-        var tipMaterial = UnlitMaterial()
-        tipMaterial.color = .init(tint: .yellow.withAlphaComponent(0.8))
-        
-        //kalau mau pake tip acnhor
-//        let tipAnchor = ModelEntity(mesh: tipMesh, materials: [tipMaterial])
-//        tipAnchor.name = "tipAnchor"
-//        
-//        tipAnchor.position = SIMD3<Float>(0, 0.5, 0)
-//        stickEntity.addChild(tipAnchor)
-        
-        //generate collision
         let collisionShape = ShapeResource.generateBox(
             width: 0.016, height: 1.0, depth: 0.016
         )
         stickEntity.components.set(CollisionComponent(
             shapes: [collisionShape],
             mode: .default
-        )) //no bounce. detectiopn only
+        ))
         
         stickEntity.isEnabled = false
         stickEntity.position = SIMD3<Float>(0, -10, 0)
         
         content.add(stickEntity)
     }
-} 
+    
+    // MARK: Track & Note Spawner
+    private func spawnTrackAndNotes(for drumEntity: Entity, type: DrumType) {
+        // 1. Buat Track (Jalur)
+        let trackMesh = MeshResource.generateBox(width: 0.2, height: 0.01, depth: 3.0)
+        var trackMaterial = UnlitMaterial()
+        trackMaterial.color = .init(tint: UIColor.white.withAlphaComponent(0.2))
+        trackMaterial.blending = .transparent(opacity: .init(floatLiteral: 0.5))
+        
+        let trackEntity = ModelEntity(mesh: trackMesh, materials: [trackMaterial])
+        trackEntity.position = SIMD3<Float>(0, -0.1, -1.5)
+        drumEntity.addChild(trackEntity)
+        
+        // 2. Random Rhythm Spawner menggunakan Task
+        Task {
+            while !Task.isCancelled {
+                guard drumEntity.parent != nil else { break }
+                
+                let randomInterval = Double.random(in: 0.8...2.5)
+                try? await Task.sleep(nanoseconds: UInt64(randomInterval * 1_000_000_000))
+                
+                await MainActor.run {
+                    spawnNote(on: drumEntity, type: type)
+                }
+            }
+        }
+    }
+
+    private func spawnNote(on parentDrum: Entity, type: DrumType) {
+        let noteMesh = MeshResource.generateSphere(radius: 0.08)
+        let noteMaterial = SimpleMaterial(color: type.color, isMetallic: false)
+        let noteEntity = ModelEntity(mesh: noteMesh, materials: [noteMaterial])
+        
+        noteEntity.components.set(RhythmNoteComponent(drumType: type, speed: 1.0))
+        noteEntity.position = SIMD3<Float>(0, 0.1, -3.0)
+        
+        parentDrum.addChild(noteEntity)
+    }
+}
