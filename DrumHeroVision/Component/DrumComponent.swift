@@ -9,11 +9,9 @@ import Foundation
 import RealityKit
 
 struct DrumComponent: Component, Codable {
-    var isHit: Bool = false
     var type: DrumType
     
-    init(type: DrumType, isHit: Bool = false) {
+    init(type: DrumType) {
         self.type = type
-        self.isHit = isHit
     }
 }

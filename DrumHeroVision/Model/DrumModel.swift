@@ -66,4 +66,5 @@ struct DrumModel: Identifiable {
     let id = UUID()
     let type: DrumType
     let iconName: String
+    var isSpawned: Bool = false
 }
