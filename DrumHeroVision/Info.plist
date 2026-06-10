@@ -8,6 +8,8 @@
 		<string>UIWindowSceneSessionRoleApplication</string>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<true/>
+		<key>UIApplicationSupportsTabbedSceneCollection</key>
+		<false/>
 		<key>UISceneConfigurations</key>
 		<dict>
 			<key>UISceneSessionRoleImmersiveSpaceApplication</key>

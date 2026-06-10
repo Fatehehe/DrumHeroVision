@@ -15,7 +15,12 @@ struct DrumHeroVisionApp: App {
     @State private var viewModel = DrumWorkspaceViewModel()
     
     init() {
-            DrumComponent.registerComponent()
+        DrumComponent.registerComponent()
+        StickTipComponent.registerComponent()
+        DrumStickSystem.registerSystem()
+        DrumSystem.registerSystem()
+        RhythmNoteComponent.registerComponent()
+        RhythmSystem.registerSystem()
         }
 
     var body: some SwiftUI.Scene {
@@ -28,21 +33,5 @@ struct DrumHeroVisionApp: App {
                     DrumImmersiveSpace()
                         .environment(viewModel)
                 }
-//        WindowGroup {
-//            ContentView()
-//                .environment(appModel)
-//        }
-//
-//        ImmersiveSpace(id: appModel.immersiveSpaceID) {
-//            ImmersiveView()
-//                .environment(appModel)
-//                .onAppear {
-//                    appModel.immersiveSpaceState = .open
-//                }
-//                .onDisappear {
-//                    appModel.immersiveSpaceState = .closed
-//                }
-//        }
-//        .immersionStyle(selection: .constant(.mixed), in: .mixed)
      }
 }

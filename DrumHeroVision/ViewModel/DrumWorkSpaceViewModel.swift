@@ -10,15 +10,27 @@ import RealityKit
 
 @Observable
 class DrumWorkspaceViewModel {
-    let availableDrums: [DrumModel] = [
+    var score: Int = 0
+    static var sharedScore: Int = 0
+    
+    var availableDrums: [DrumModel] = [
         DrumModel(type: .snare, iconName: "circle.circle"),
-        DrumModel(type: .bass, iconName: "circle.circle.fill"),
-        DrumModel(type: .hihat, iconName: "record.circle")
+        DrumModel(type: .hihat, iconName: "record.circle"),
+        DrumModel(type: .ride, iconName: "circle.dotted"),
+        DrumModel(type: .crash, iconName: "circle.slash"),
+        DrumModel(type: .tom1, iconName: "circle.dashed"),
+        DrumModel(type: .tom2, iconName: "circle.hexagonpath"),
+        DrumModel(type: .tom2, iconName: "circle.hexagongrid")
     ]
     
     var pendingSpawnType: DrumType?
     
     func requestSpawn(for type: DrumType) {
+        for index in availableDrums.indices {
+            if availableDrums[index].type == type {
+                availableDrums[index].isSpawned = true
+            }
+        }
         pendingSpawnType = type
     }
 }
